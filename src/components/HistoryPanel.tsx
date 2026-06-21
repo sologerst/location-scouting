@@ -34,6 +34,7 @@ export default function HistoryPanel({
 }) {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [status, setStatus] = useState<Status>("loading");
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,11 +62,50 @@ export default function HistoryPanel({
     };
   }, [refreshKey]);
 
+  const remove = async (id: number) => {
+    setItems((prev) => prev.filter((it) => it.id !== id)); // optimistic
+    try {
+      await fetch(`/api/history?id=${id}`, { method: "DELETE" });
+    } catch {
+      /* best-effort */
+    }
+  };
+
+  const clearAll = async () => {
+    setClearing(true);
+    const prev = items;
+    setItems([]); // optimistic
+    try {
+      const r = await fetch("/api/history?all=true", { method: "DELETE" });
+      const d = (await r.json()) as { status: string };
+      if (d.status !== "ok") setItems(prev);
+    } catch {
+      setItems(prev);
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <div>
-      <h2 className="mb-1 text-xl font-medium" style={{ color: "var(--ink)" }}>
-        Lookup history
-      </h2>
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <h2 className="text-xl font-medium" style={{ color: "var(--ink)" }}>
+          Lookup history
+        </h2>
+        {status === "ok" && items.length > 0 && (
+          <button
+            className="btn-ghost"
+            onClick={clearAll}
+            disabled={clearing}
+            aria-label="Clear all history"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Clear all
+          </button>
+        )}
+      </div>
       <p className="mb-5 text-[14px]" style={{ color: "var(--ink-muted)" }}>
         Your recent property lookups. Select one to run it again.
       </p>
@@ -107,55 +147,67 @@ export default function HistoryPanel({
 
       {status === "ok" && items.length > 0 && (
         <div className="space-y-1.5">
-          {items.map((it, i) => {
-            const reType: QueryType =
-              it.folioRaw ? "folio" : it.queryType;
+          {items.map((it) => {
+            const reType: QueryType = it.folioRaw ? "folio" : it.queryType;
             const reQuery = it.folioRaw ? fmtFolio(it.folioRaw) : it.query;
             const title = it.matched
               ? it.ownerName ?? it.siteAddress ?? it.query
               : it.query;
-            const sub = it.matched
-              ? it.siteAddress ?? it.query
-              : "No match";
+            const sub = it.matched ? it.siteAddress ?? it.query : "No match";
             return (
-              <button
-                key={`${it.createdAt}-${i}`}
-                onClick={() => onPick(reQuery, reType)}
-                className="flex w-full items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--surface-sunken)]"
+              <div
+                key={it.id}
+                className="flex items-center rounded-lg border transition-colors hover:bg-[var(--surface-sunken)]"
                 style={{ borderColor: "var(--border)" }}
               >
-                <span className="min-w-0">
-                  <span
-                    className="flex items-center gap-2 truncate text-[14px]"
-                    style={{ color: "var(--ink)" }}
-                  >
-                    <span className="truncate">{title}</span>
-                    {!it.matched && (
-                      <span
-                        className="badge"
-                        style={{
-                          background: "var(--danger-bg)",
-                          color: "var(--danger-fg)",
-                        }}
-                      >
-                        no match
-                      </span>
-                    )}
+                <button
+                  onClick={() => onPick(reQuery, reType)}
+                  className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3.5 py-2.5 text-left"
+                >
+                  <span className="min-w-0">
+                    <span
+                      className="flex items-center gap-2 truncate text-[14px]"
+                      style={{ color: "var(--ink)" }}
+                    >
+                      <span className="truncate">{title}</span>
+                      {!it.matched && (
+                        <span
+                          className="badge"
+                          style={{
+                            background: "var(--danger-bg)",
+                            color: "var(--danger-fg)",
+                          }}
+                        >
+                          no match
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className="block truncate text-[12px]"
+                      style={{ color: "var(--ink-hint)" }}
+                    >
+                      {it.queryType === "folio" ? "Folio" : "Address"} · “{it.query}” · {sub}
+                    </span>
                   </span>
                   <span
-                    className="block truncate text-[12px]"
+                    className="shrink-0 text-[12px]"
                     style={{ color: "var(--ink-hint)" }}
                   >
-                    {it.queryType === "folio" ? "Folio" : "Address"} · “{it.query}” · {sub}
+                    {timeAgo(it.createdAt)}
                   </span>
-                </span>
-                <span
-                  className="shrink-0 text-[12px]"
-                  style={{ color: "var(--ink-hint)" }}
+                </button>
+                <button
+                  onClick={() => remove(it.id)}
+                  aria-label="Delete this lookup"
+                  title="Delete"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[var(--danger-bg)]"
+                  style={{ color: "var(--ink-hint)", marginRight: "6px" }}
                 >
-                  {timeAgo(it.createdAt)}
-                </span>
-              </button>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
             );
           })}
         </div>

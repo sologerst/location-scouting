@@ -83,6 +83,7 @@ export async function recordLookup(
 }
 
 interface HistoryRow {
+  id: number;
   query: string;
   query_type: string;
   matched: boolean;
@@ -102,11 +103,12 @@ export async function readHistory(
     const { data } = await db
       .from("search_history")
       .select(
-        "query,query_type,matched,folio_raw,owner_name,site_address,created_at",
+        "id,query,query_type,matched,folio_raw,owner_name,site_address,created_at",
       )
       .order("created_at", { ascending: false })
       .limit(limit);
     return ((data as HistoryRow[]) ?? []).map((r) => ({
+      id: r.id,
       query: r.query,
       queryType: r.query_type === "folio" ? "folio" : "address",
       matched: r.matched,
@@ -117,5 +119,30 @@ export async function readHistory(
     }));
   } catch {
     return null;
+  }
+}
+
+/** Delete a single search-history row by id. */
+export async function deleteHistory(id: number): Promise<boolean> {
+  const db = getServiceClient();
+  if (!db) return false;
+  try {
+    const { error } = await db.from("search_history").delete().eq("id", id);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/** Delete all search-history rows. */
+export async function clearHistory(): Promise<boolean> {
+  const db = getServiceClient();
+  if (!db) return false;
+  try {
+    // delete requires a filter; identity ids are always > 0
+    const { error } = await db.from("search_history").delete().gt("id", 0);
+    return !error;
+  } catch {
+    return false;
   }
 }

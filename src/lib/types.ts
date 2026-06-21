@@ -86,6 +86,7 @@ export interface ContactResult {
 // ---- Search history ----
 
 export interface HistoryItem {
+  id: number;
   query: string;
   queryType: QueryType;
   matched: boolean;
