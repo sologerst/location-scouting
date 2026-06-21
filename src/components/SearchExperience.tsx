@@ -18,10 +18,6 @@ export interface SearchTrigger {
   nonce: number;
 }
 
-function looksLikeFolio(q: string): boolean {
-  return q.replace(/\D/g, "").length === 13;
-}
-
 export default function SearchExperience({
   trigger,
 }: {
@@ -125,13 +121,6 @@ export default function SearchExperience({
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     void run(query, mode);
-  };
-
-  const runExample = (ex: string) => {
-    const type: QueryType = looksLikeFolio(ex) ? "folio" : "address";
-    setQuery(ex);
-    setMode(type);
-    void run(ex, type);
   };
 
   const pickAlternate = (m: OwnerMatch) => {
@@ -243,17 +232,6 @@ export default function SearchExperience({
           </div>
         </div>
       )}
-
-      <div className="mt-8 flex flex-wrap gap-2">
-        <span className="self-center text-[12px]" style={{ color: "var(--ink-hint)" }}>
-          Try:
-        </span>
-        {["1450 Brickell Ave", "8950 SW 74 Ct", "01-4139-117-0010"].map((ex) => (
-          <button key={ex} className="btn-ghost" onClick={() => runExample(ex)}>
-            {ex}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
