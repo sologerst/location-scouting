@@ -6,7 +6,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY   (server-only; used by API routes)
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { OwnerLookupResult } from "./types";
+import type { HistoryItem, OwnerLookupResult } from "./types";
 
 let cached: SupabaseClient | null = null;
 
@@ -74,8 +74,48 @@ export async function recordLookup(
       query_type: result.queryType,
       matched: Boolean(result.match),
       folio_raw: result.match?.folioRaw ?? null,
+      owner_name: result.match?.owners[0]?.name ?? null,
+      site_address: result.match?.siteAddress ?? null,
     });
   } catch {
     // swallow — telemetry must never break the request
+  }
+}
+
+interface HistoryRow {
+  query: string;
+  query_type: string;
+  matched: boolean;
+  folio_raw: string | null;
+  owner_name: string | null;
+  site_address: string | null;
+  created_at: string;
+}
+
+/** Recent search history (most recent first). Returns null if Supabase is off. */
+export async function readHistory(
+  limit = 50,
+): Promise<HistoryItem[] | null> {
+  const db = getServiceClient();
+  if (!db) return null;
+  try {
+    const { data } = await db
+      .from("search_history")
+      .select(
+        "query,query_type,matched,folio_raw,owner_name,site_address,created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return ((data as HistoryRow[]) ?? []).map((r) => ({
+      query: r.query,
+      queryType: r.query_type === "folio" ? "folio" : "address",
+      matched: r.matched,
+      folioRaw: r.folio_raw,
+      ownerName: r.owner_name,
+      siteAddress: r.site_address,
+      createdAt: r.created_at,
+    }));
+  } catch {
+    return null;
   }
 }

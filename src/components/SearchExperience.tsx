@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   ContactResult,
   OwnerLookupResult,
@@ -10,16 +10,25 @@ import type {
 import OwnerCard from "./OwnerCard";
 import ContactPanel, { type ContactPhase } from "./ContactPanel";
 
-type TypeMode = "auto" | QueryType;
 type OwnerPhase = "idle" | "loading" | "done" | "error";
+
+export interface SearchTrigger {
+  q: string;
+  type: QueryType;
+  nonce: number;
+}
 
 function looksLikeFolio(q: string): boolean {
   return q.replace(/\D/g, "").length === 13;
 }
 
-export default function SearchExperience() {
+export default function SearchExperience({
+  trigger,
+}: {
+  trigger?: SearchTrigger | null;
+}) {
   const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<TypeMode>("auto");
+  const [mode, setMode] = useState<QueryType>("address");
 
   const [ownerPhase, setOwnerPhase] = useState<OwnerPhase>("idle");
   const [owner, setOwner] = useState<OwnerLookupResult | null>(null);
@@ -67,7 +76,7 @@ export default function SearchExperience() {
   }, []);
 
   const run = useCallback(
-    async (q: string, forcedType?: QueryType) => {
+    async (q: string, type: QueryType) => {
       const trimmed = q.trim();
       if (!trimmed) return;
 
@@ -81,9 +90,7 @@ export default function SearchExperience() {
       setContact(null);
       setContactPhase("idle");
 
-      const type: TypeMode = forcedType ?? mode;
-      const params = new URLSearchParams({ q: trimmed });
-      if (type !== "auto") params.set("type", type);
+      const params = new URLSearchParams({ q: trimmed, type });
 
       try {
         const res = await fetch(`/api/owner?${params.toString()}`, {
@@ -103,12 +110,28 @@ export default function SearchExperience() {
         setOwnerPhase("error");
       }
     },
-    [mode, enrich],
+    [enrich],
   );
+
+  // Replay a lookup requested from the History tab.
+  useEffect(() => {
+    if (!trigger) return;
+    setQuery(trigger.q);
+    setMode(trigger.type);
+    void run(trigger.q, trigger.type);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trigger?.nonce]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    void run(query);
+    void run(query, mode);
+  };
+
+  const runExample = (ex: string) => {
+    const type: QueryType = looksLikeFolio(ex) ? "folio" : "address";
+    setQuery(ex);
+    setMode(type);
+    void run(ex, type);
   };
 
   const pickAlternate = (m: OwnerMatch) => {
@@ -117,22 +140,20 @@ export default function SearchExperience() {
     void run(m.folioRaw, "folio");
   };
 
-  const autoHint =
-    mode === "auto" && query.trim()
-      ? looksLikeFolio(query)
-        ? "Auto-detected: folio"
-        : "Auto-detected: address"
-      : "";
-
   return (
     <div>
       <form onSubmit={onSubmit} className="flex gap-2">
         <input
           className="field"
-          placeholder="1450 Brickell Ave  ·  or  ·  01-4139-117-0010"
+          placeholder={
+            mode === "folio"
+              ? "01-4139-117-0010"
+              : "1450 Brickell Ave, Miami, FL"
+          }
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Address or folio number"
+          aria-label={mode === "folio" ? "Folio number" : "Street address"}
+          inputMode={mode === "folio" ? "numeric" : "text"}
           autoFocus
         />
         <button
@@ -144,8 +165,8 @@ export default function SearchExperience() {
         </button>
       </form>
 
-      <div className="mt-2.5 flex items-center gap-1.5">
-        {(["auto", "address", "folio"] as TypeMode[]).map((m) => (
+      <div className="mt-2.5 flex items-center gap-1.5" role="group" aria-label="Search by">
+        {(["address", "folio"] as QueryType[]).map((m) => (
           <button
             key={m}
             type="button"
@@ -153,14 +174,9 @@ export default function SearchExperience() {
             data-active={mode === m}
             onClick={() => setMode(m)}
           >
-            {m === "auto" ? "Auto" : m === "address" ? "Address" : "Folio #"}
+            {m === "address" ? "Address" : "Folio #"}
           </button>
         ))}
-        {autoHint && (
-          <span className="ml-auto text-[12px]" style={{ color: "var(--ink-hint)" }}>
-            {autoHint}
-          </span>
-        )}
       </div>
 
       {ownerPhase === "error" && (
@@ -185,8 +201,8 @@ export default function SearchExperience() {
             No property found
           </p>
           <p className="mt-1 text-[13px]">
-            Nothing matched “{owner.query}”. Check the spelling, or try the folio
-            number.
+            Nothing matched “{owner.query}”. Check the spelling, or switch to{" "}
+            {mode === "address" ? "folio" : "address"} search.
           </p>
         </div>
       )}
@@ -233,15 +249,7 @@ export default function SearchExperience() {
           Try:
         </span>
         {["1450 Brickell Ave", "8950 SW 74 Ct", "01-4139-117-0010"].map((ex) => (
-          <button
-            key={ex}
-            className="btn-ghost"
-            onClick={() => {
-              setQuery(ex);
-              setMode("auto");
-              void run(ex);
-            }}
-          >
+          <button key={ex} className="btn-ghost" onClick={() => runExample(ex)}>
             {ex}
           </button>
         ))}

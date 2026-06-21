@@ -1,4 +1,4 @@
-import SearchExperience from "@/components/SearchExperience";
+import Workspace from "@/components/Workspace";
 
 export default function Home() {
   return (
@@ -24,18 +24,7 @@ export default function Home() {
         </span>
       </header>
 
-      <h1
-        className="mb-2 text-2xl font-medium tracking-tight sm:text-3xl"
-        style={{ color: "var(--ink)" }}
-      >
-        Find the owner of any Miami-Dade property
-      </h1>
-      <p className="mb-7 text-[15px]" style={{ color: "var(--ink-muted)" }}>
-        Enter a street address or 13-digit folio number. We return the owner of
-        record from the county, then look up a way to reach them.
-      </p>
-
-      <SearchExperience />
+      <Workspace />
     </main>
   );
 }

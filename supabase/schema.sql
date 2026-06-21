@@ -15,12 +15,14 @@ create index if not exists owner_lookups_fetched_at_idx
 
 -- Lightweight search log (no contact data stored here).
 create table if not exists public.search_history (
-  id          bigint generated always as identity primary key,
-  query       text not null,
-  query_type  text not null,
-  matched     boolean not null default false,
-  folio_raw   text,
-  created_at  timestamptz not null default now()
+  id            bigint generated always as identity primary key,
+  query         text not null,
+  query_type    text not null,
+  matched       boolean not null default false,
+  folio_raw     text,
+  owner_name    text,
+  site_address  text,
+  created_at    timestamptz not null default now()
 );
 
 create index if not exists search_history_created_at_idx

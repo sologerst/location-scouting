@@ -82,3 +82,15 @@ export interface ContactResult {
   message?: string;
   fetchedAt: string;
 }
+
+// ---- Search history ----
+
+export interface HistoryItem {
+  query: string;
+  queryType: QueryType;
+  matched: boolean;
+  folioRaw: string | null;
+  ownerName: string | null;
+  siteAddress: string | null;
+  createdAt: string;
+}
