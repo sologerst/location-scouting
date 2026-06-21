@@ -1,4 +1,4 @@
-# Location Scouting
+# Miami-Dade County Property Owner Lookup
 
 Enter a Miami-Dade street address or 13-digit folio number → get the **owner of
 record** from the county, then a **way to reach them**. Built for property /

@@ -20,7 +20,7 @@ export default function Home() {
           </svg>
         </span>
         <span className="text-[15px] font-medium" style={{ color: "var(--ink)" }}>
-          Location Scouting
+          Miami-Dade County Property Owner Lookup
         </span>
       </header>
 

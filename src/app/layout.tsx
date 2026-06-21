@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Location Scouting — find any property owner",
+  title: "Miami-Dade County Property Owner Lookup",
   description:
     "Enter a Miami-Dade address or folio number to find the property owner of record and reach out.",
 };
