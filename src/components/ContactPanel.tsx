@@ -37,7 +37,7 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-function ContactRow({ datum }: { datum: ContactDatum }) {
+function ContactRow({ datum, best }: { datum: ContactDatum; best?: boolean }) {
   const isPhone = datum.kind === "phone";
   const href = isPhone ? `tel:${datum.value.replace(/[^\d+]/g, "")}` : `mailto:${datum.value}`;
   const meta = [
@@ -61,6 +61,14 @@ function ContactRow({ datum }: { datum: ContactDatum }) {
             {datum.value}
           </span>
           <ConfidencePill value={datum.confidence} />
+          {best && (
+            <span
+              className="text-[10px] font-medium uppercase tracking-wide"
+              style={{ color: "var(--enriched-fg)" }}
+            >
+              best
+            </span>
+          )}
         </div>
         <p className="truncate text-[11px]" style={{ color: "var(--ink-hint)" }}>
           {meta || "unverified"}
@@ -158,12 +166,46 @@ export default function ContactPanel({
 }
 
 function ContactBody({ result }: { result: ContactResult }) {
+  const [expanded, setExpanded] = useState(false);
+
   if (result.status === "ok") {
+    const phones = result.contacts.filter((c) => c.kind === "phone");
+    const emails = result.contacts.filter((c) => c.kind === "email");
+    // Contacts arrive sorted best-first, so [0] of each kind is the top pick.
+    const primary = [phones[0], emails[0]].filter(Boolean) as ContactDatum[];
+    const rest = [...phones.slice(1), ...emails.slice(1)];
+
     return (
       <div>
-        {result.contacts.map((c, i) => (
-          <ContactRow key={`${c.kind}-${i}`} datum={c} />
+        {primary.map((c, i) => (
+          <ContactRow key={`primary-${c.kind}-${i}`} datum={c} best={rest.length > 0} />
         ))}
+        {expanded &&
+          rest.map((c, i) => (
+            <ContactRow key={`rest-${c.kind}-${i}`} datum={c} />
+          ))}
+        {rest.length > 0 && (
+          <button
+            className="mt-2.5 flex items-center gap-1 text-[12px] font-medium"
+            style={{ color: "var(--brand)" }}
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+          >
+            {expanded
+              ? "Show fewer"
+              : `Show ${rest.length} more ${rest.length === 1 ? "contact" : "contacts"}`}
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden
+              style={{ transform: expanded ? "rotate(180deg)" : "none" }}
+            >
+              <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
         {result.provider === "mock" && (
           <p className="mt-2 text-[11px]" style={{ color: "var(--enriched-fg)" }}>
             Sample data (mock provider).
