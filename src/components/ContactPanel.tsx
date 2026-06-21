@@ -52,12 +52,12 @@ function ContactRow({ datum, best }: { datum: ContactDatum; best?: boolean }) {
 
   return (
     <div
-      className="flex items-center justify-between gap-3 border-b py-2 last:border-b-0"
+      className="flex flex-col items-start gap-2 border-b py-2.5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-2"
       style={{ borderColor: "var(--border)" }}
     >
-      <div className="min-w-0">
+      <div className="w-full min-w-0 sm:w-auto">
         <div className="flex items-center gap-2">
-          <span className="truncate text-[14px]" style={{ color: "var(--ink)" }}>
+          <span className="break-all text-[14px] sm:truncate" style={{ color: "var(--ink)" }}>
             {datum.value}
           </span>
           <ConfidencePill value={datum.confidence} />
