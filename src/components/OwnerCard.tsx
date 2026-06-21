@@ -16,11 +16,11 @@ const KIND_LABEL: Record<OwnerRecord["ownerKind"], string> = {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-4 py-1.5">
-      <span className="text-[13px]" style={{ color: "var(--ink-hint)" }}>
+      <span className="shrink-0 text-[13px]" style={{ color: "var(--ink-hint)" }}>
         {label}
       </span>
       <span
-        className="text-right text-[13px]"
+        className="min-w-0 break-words text-right text-[13px]"
         style={{ color: "var(--ink)" }}
       >
         {value}

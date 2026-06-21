@@ -122,9 +122,10 @@ body {
 
 .field {
   width: 100%;
-  height: 46px;
+  height: 48px;
   padding: 0 14px;
-  font-size: 15px;
+  /* 16px min prevents iOS Safari from zooming in on focus */
+  font-size: 16px;
   color: var(--ink);
   background: var(--surface-raised);
   border: 0.5px solid var(--border-strong);
@@ -141,7 +142,7 @@ body {
 }
 
 .btn-primary {
-  height: 46px;
+  height: 48px;
   padding: 0 22px;
   font-size: 15px;
   font-weight: 500;
@@ -249,5 +250,23 @@ body {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Larger tap targets on touch devices */
+@media (pointer: coarse) {
+  .btn-ghost {
+    height: 40px;
+    padding: 0 15px;
+  }
+  .seg {
+    padding: 7px 14px;
+  }
+}
+
+/* Tighter horizontal padding on very small phones */
+@media (max-width: 360px) {
+  .card {
+    padding: 16px;
   }
 }
