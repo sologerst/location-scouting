@@ -4,8 +4,9 @@ import { useCallback, useRef, useState } from "react";
 import type { QueryType } from "@/lib/types";
 import SearchExperience, { type SearchTrigger } from "./SearchExperience";
 import HistoryPanel from "./HistoryPanel";
+import ResearchPanel from "./ResearchPanel";
 
-type Tab = "search" | "history";
+type Tab = "search" | "research" | "history";
 
 export default function Workspace() {
   const [tab, setTab] = useState<Tab>("search");
@@ -35,6 +36,9 @@ export default function Workspace() {
         <TabButton active={tab === "search"} onClick={() => setTab("search")} icon="search">
           Search
         </TabButton>
+        <TabButton active={tab === "research"} onClick={() => setTab("research")} icon="research">
+          Research
+        </TabButton>
         <TabButton active={tab === "history"} onClick={openHistory} icon="clock">
           History
         </TabButton>
@@ -54,6 +58,10 @@ export default function Workspace() {
         <SearchExperience trigger={trigger} />
       </div>
 
+      <div hidden={tab !== "research"}>
+        <ResearchPanel onPick={pick} />
+      </div>
+
       <div hidden={tab !== "history"}>
         <HistoryPanel refreshKey={historyRefresh} onPick={pick} />
       </div>
@@ -69,7 +77,7 @@ function TabButton({
 }: {
   active: boolean;
   onClick: () => void;
-  icon: "search" | "clock";
+  icon: "search" | "clock" | "research";
   children: React.ReactNode;
 }) {
   return (
@@ -84,12 +92,21 @@ function TabButton({
       }}
     >
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-        {icon === "search" ? (
+        {icon === "search" && (
           <>
             <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
             <path d="m20 20-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </>
-        ) : (
+        )}
+        {icon === "research" && (
+          <path
+            d="M3 5h18M6 12h12M10 19h4"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        )}
+        {icon === "clock" && (
           <>
             <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
             <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
