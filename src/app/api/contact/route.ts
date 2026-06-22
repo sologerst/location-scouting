@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     ownerKind: (body.ownerKind as OwnerRecord["ownerKind"]) ?? "unknown",
     mailingAddress: (body.mailingAddress as MailingAddress | null) ?? null,
     siteAddress: body.siteAddress,
+    searchName: body.searchName ?? null,
   };
 
   try {

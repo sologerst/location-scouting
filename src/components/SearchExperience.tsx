@@ -52,6 +52,7 @@ export default function SearchExperience({
           ownerKind: lookup.match.ownerKind,
           mailingAddress: lookup.match.mailingAddress,
           siteAddress: lookup.match.siteAddress,
+          searchName: lookup.match.trustInfo?.person ?? null,
         }),
       });
       const data = (await res.json()) as ContactResult;

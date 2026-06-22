@@ -36,10 +36,14 @@ export async function readOwnerCache(
   const db = getServiceClient();
   if (!db) return null;
   try {
+    // TTL: ignore cache older than 7 days so county updates and any change to
+    // our derivation (e.g. trust parsing) self-heal instead of serving stale JSON.
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data } = await db
       .from("owner_lookups")
       .select("result, fetched_at")
       .eq("folio_raw", folioRaw)
+      .gte("fetched_at", cutoff)
       .order("fetched_at", { ascending: false })
       .limit(1)
       .maybeSingle();

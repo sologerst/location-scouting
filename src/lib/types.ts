@@ -15,6 +15,17 @@ export interface MailingAddress {
   zip: string;
 }
 
+/** Parties parsed out of a trust-owned record. */
+export interface TrustInfo {
+  trustName: string;
+  /** Likely trustee/grantor — a reachable individual (best skip-trace target). */
+  person: string | null;
+  /** "C/O" contact, often an attorney. */
+  careOf: string | null;
+  /** An entity acting as trustee (e.g. an LLC) — needs entity→human resolution. */
+  entityTrustee: string | null;
+}
+
 /** Normalized, authoritative owner-of-record record from Miami-Dade County. */
 export interface OwnerRecord {
   folio: string; // formatted 99-9999-999-9999
@@ -28,8 +39,10 @@ export interface OwnerRecord {
   assessedValue: number | null;
   totalValue: number | null;
   rollYear: number | null;
-  /** heuristic: is the owner an entity (LLC/Corp/Trust) vs an individual */
-  ownerKind: "business" | "individual" | "government" | "unknown";
+  /** heuristic: is the owner an entity (LLC/Corp), trust, gov, or an individual */
+  ownerKind: "business" | "individual" | "government" | "trust" | "unknown";
+  /** present when the property is held in a trust */
+  trustInfo?: TrustInfo | null;
 }
 
 /** A lightweight match used when an address search returns multiple parcels. */

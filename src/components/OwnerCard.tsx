@@ -10,6 +10,7 @@ const KIND_LABEL: Record<OwnerRecord["ownerKind"], string> = {
   business: "Business / entity",
   individual: "Individual",
   government: "Government",
+  trust: "Trust",
   unknown: "Owner",
 };
 
@@ -64,6 +65,40 @@ export default function OwnerCard({ record }: { record: OwnerRecord }) {
         {KIND_LABEL[record.ownerKind]}
         {record.propertyType ? ` · ${titleCase(record.propertyType)}` : ""}
       </p>
+
+      {record.ownerKind === "trust" && record.trustInfo && (
+        <div
+          className="mt-3 rounded-lg p-3 text-[13px]"
+          style={{ background: "var(--enriched-bg)" }}
+        >
+          {record.trustInfo.person ? (
+            <p style={{ color: "var(--enriched-fg)" }}>
+              <span className="font-medium">Likely trustee/grantor:</span>{" "}
+              {titleCase(record.trustInfo.person)}
+              <span className="block text-[11px]" style={{ color: "var(--ink-hint)" }}>
+                Contact search uses this person, not the trust name.
+              </span>
+            </p>
+          ) : record.trustInfo.careOf ? (
+            <p style={{ color: "var(--enriched-fg)" }}>
+              <span className="font-medium">Trust contact (C/O):</span>{" "}
+              {titleCase(record.trustInfo.careOf)}
+            </p>
+          ) : record.trustInfo.entityTrustee ? (
+            <p style={{ color: "var(--enriched-fg)" }}>
+              <span className="font-medium">Entity trustee:</span>{" "}
+              {record.trustInfo.entityTrustee}
+              <span className="block text-[11px]" style={{ color: "var(--ink-hint)" }}>
+                Held by an entity — individual not in the public record.
+              </span>
+            </p>
+          ) : (
+            <p style={{ color: "var(--ink-muted)" }}>
+              Trust-held; no individual trustee in the public record.
+            </p>
+          )}
+        </div>
+      )}
 
       <div
         className="mt-3.5 border-t pt-2"

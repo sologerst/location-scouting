@@ -24,6 +24,8 @@ export interface EnrichInput {
   ownerKind: OwnerRecord["ownerKind"];
   mailingAddress: MailingAddress | null;
   siteAddress?: string;
+  /** Override the name to skip-trace by — e.g. the trustee/grantor of a trust. */
+  searchName?: string | null;
 }
 
 function citystatezip(m: MailingAddress): string {
@@ -74,15 +76,18 @@ async function enrichViaApify(
     };
   }
 
-  // Inputs are arrays. Anchor on the mailing address; for individuals also
-  // search by name (most precise for a person).
+  // Inputs are arrays. Anchor on the mailing address; when we have a person
+  // (an individual owner, or a trust's trustee/grantor) also search by name.
   const csz = citystatezip(m);
+  const personName =
+    input.searchName ||
+    (input.ownerKind === "individual" ? input.name : null);
   const body: Record<string, unknown> = {
     street_citystatezip: [`${m.line1}; ${csz}`],
     max_results: 4,
   };
-  if (input.ownerKind === "individual") {
-    body.name = [`${input.name}; ${csz}`];
+  if (personName) {
+    body.name = [`${personName}; ${csz}`];
   }
 
   // run-sync-get-dataset-items: run the actor and get results in one call.
@@ -109,7 +114,7 @@ async function enrichViaApify(
   }
 
   const items = (await res.json()) as ApifyPersonItem[];
-  const contacts = parseApifyItems(items, input);
+  const contacts = parseApifyItems(items, personName);
   return {
     status: contacts.length > 0 ? "ok" : "no_match",
     subject: input.name,
@@ -138,13 +143,13 @@ function recencyConfidence(lastReported: string): number | null {
  */
 function parseApifyItems(
   items: ApifyPersonItem[],
-  input: EnrichInput,
+  personName: string | null,
 ): ContactDatum[] {
   if (!Array.isArray(items) || items.length === 0) return [];
 
   let pool = items;
-  if (input.ownerKind === "individual") {
-    const lastName = input.name.trim().split(/\s+/).pop()?.toLowerCase() ?? "";
+  if (personName) {
+    const lastName = personName.trim().split(/\s+/).pop()?.toLowerCase() ?? "";
     const matched = items.filter(
       (it) =>
         lastName.length > 1 &&

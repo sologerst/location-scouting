@@ -13,6 +13,7 @@ import type {
   OwnerName,
   OwnerRecord,
   QueryType,
+  TrustInfo,
 } from "./types";
 
 const PROXY =
@@ -53,6 +54,91 @@ function classifyOwner(name: string): OwnerRecord["ownerKind"] {
   if (GOV_HINTS.test(name)) return "government";
   if (BUSINESS_HINTS.test(name)) return "business";
   return "individual";
+}
+
+// ---- Trust detection & party extraction ----
+
+const TRUST_RE =
+  /\b(TRUST|TRUSTEE|TTEE|REVOCABLE|IRREVOCABLE|\bREV\s+TR|\bLIV(?:ING)?\s+TR|FAMILY\s+TR|LAND\s+TR|\bTRS\b|FBO)\b/i;
+const NON_PERSON_RE =
+  /\b(LAND|BLOCK|STREET|ST|AVE|ROAD|PHASE|PROPERTIES|PROPERTY|HOLDINGS|GROUP|PARTNERS|INVESTMENTS?|REALTY|VENTURES?|CAPITAL|FUND|MANAGEMENT|ENTERPRISES?|ASSOCIATES?)\b/i;
+
+export function isTrustName(name: string): boolean {
+  return TRUST_RE.test(name);
+}
+
+/** Strip trust/trustee descriptors, leaving (hopefully) a person's name. */
+function stripTrustPhrases(s: string): string {
+  return s
+    .replace(/^THE\s+/i, "")
+    .replace(/\bAS\s+TRUSTEE[S]?\b/gi, "")
+    .replace(/\b(REVOCABLE|IRREVOCABLE|REV|IRREV|LIVING|LIV|FAMILY|LAND)\b/gi, "")
+    .replace(/\bTRUSTEE[S]?\b/gi, "")
+    .replace(/\bTRUST\b/gi, "")
+    .replace(/\bTTEE\b/gi, "")
+    .replace(/\bTRS\b/gi, "")
+    .replace(/\bTR\b/gi, "")
+    .replace(/[,]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/** Return the string as a person name, or null if it doesn't look like one. */
+function asPerson(s: string): string | null {
+  const cleaned = stripTrustPhrases(s);
+  if (!cleaned || /\d/.test(cleaned)) return null;
+  if (BUSINESS_HINTS.test(cleaned) || NON_PERSON_RE.test(cleaned)) return null;
+  const tokens = cleaned.split(/\s+/).filter((t) => /[A-Za-z]/.test(t));
+  if (tokens.length < 2) return null; // need at least first + last
+  return cleaned;
+}
+
+/** Parse trustee/grantor/care-of parties from a trust-owned record's names. */
+export function deriveTrust(owners: OwnerName[]): TrustInfo | null {
+  const names = owners.map((o) => o.name).filter(Boolean);
+  if (!names.some(isTrustName)) return null;
+
+  const trustName =
+    names.find((n) => /TRUST|LAND\s+TR|FAMILY\s+TR|REV/i.test(n)) ?? names[0];
+
+  let person: string | null = null;
+
+  // 1) explicit person trustee line: "NAME TRS" / "NAME AS TRUSTEE"
+  for (const n of names) {
+    const m = n.match(/^(.*?)\s+(?:AS\s+)?(?:TRS|TRUSTEE|TTEE)\b/i);
+    if (m && !BUSINESS_HINTS.test(m[1])) {
+      const p = asPerson(m[1]);
+      if (p) {
+        person = p;
+        break;
+      }
+    }
+  }
+  // 2) grantor embedded in the trust name itself
+  if (!person) person = asPerson(trustName);
+  // 3) "for benefit of" beneficiary
+  if (!person) {
+    const fbo = names.find((n) => /^FBO\b/i.test(n));
+    if (fbo) person = asPerson(fbo.replace(/^FBO\b/i, ""));
+  }
+
+  // C/O contact (often an attorney)
+  let careOf: string | null = null;
+  const co = names.find((n) => /^C\/O\b/i.test(n));
+  if (co) {
+    careOf =
+      co
+        .replace(/^C\/O\s*/i, "")
+        .replace(/\b(ESQ|PA|P\.A\.|LLC|LLP)\b\.?/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .trim() || null;
+  }
+
+  // Only a real corporate entity counts as an entity trustee (not the trust name itself).
+  const CORP_RE = /\b(LLC|INC|CORP|COMPANY|CO|LP|LLP|LTD|BANK)\b/i;
+  const entityTrustee = names.find((n) => CORP_RE.test(n)) ?? null;
+
+  return { trustName, person, careOf, entityTrustee };
 }
 
 async function callProxy(
@@ -154,6 +240,11 @@ export async function getOwnerByFolio(
   const assessment = data.Assessment?.AssessmentInfos?.[0];
   const folio = data.PropertyInfo.FolioNumber || formatFolio(folioRaw);
 
+  const trustInfo = deriveTrust(owners);
+  const ownerKind: OwnerRecord["ownerKind"] = trustInfo
+    ? "trust"
+    : classifyOwner(owners[0].name);
+
   return {
     folio,
     folioRaw,
@@ -166,7 +257,8 @@ export async function getOwnerByFolio(
     assessedValue: assessment?.AssessedValue ?? null,
     totalValue: assessment?.TotalValue ?? null,
     rollYear: assessment?.Year ?? null,
-    ownerKind: classifyOwner(owners[0].name),
+    ownerKind,
+    trustInfo,
   };
 }
 
