@@ -94,6 +94,8 @@ export interface ContactResult {
   provider: string | null;
   message?: string;
   fetchedAt: string;
+  /** true when served from the saved cache (no provider call / no fee) */
+  cached?: boolean;
 }
 
 // ---- Search history ----

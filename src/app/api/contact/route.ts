@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enrichContacts, type EnrichInput } from "@/lib/skiptrace";
+import { readContactCache, writeContactCache } from "@/lib/supabase";
 import type { MailingAddress, OwnerRecord } from "@/lib/types";
 
+interface ContactBody extends Partial<EnrichInput> {
+  /** folio of the property — used as the cache key */
+  folio?: string;
+  /** force a fresh provider call even if a saved result exists */
+  force?: boolean;
+}
+
 // Contact enrichment ("skip trace") — probabilistic / "enriched" tier.
-// POST body: { name, ownerKind, mailingAddress, siteAddress }
+// Saved per folio so revisiting a property doesn't re-hit the paid provider.
 export async function POST(req: NextRequest) {
-  let body: Partial<EnrichInput>;
+  let body: ContactBody;
   try {
-    body = (await req.json()) as Partial<EnrichInput>;
+    body = (await req.json()) as ContactBody;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
@@ -20,6 +28,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const folio = (body.folio ?? "").replace(/\D/g, "") || null;
+
+  // Serve a saved result unless a refresh is explicitly requested.
+  if (folio && !body.force) {
+    const cached = await readContactCache(folio);
+    if (cached) return NextResponse.json(cached);
+  }
+
   const input: EnrichInput = {
     name,
     ownerKind: (body.ownerKind as OwnerRecord["ownerKind"]) ?? "unknown",
@@ -30,7 +46,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await enrichContacts(input);
-    return NextResponse.json(result);
+    // Cache only definitive results (a real hit or a confirmed no-match),
+    // never errors / not-configured — and only when we have a folio key.
+    if (folio && (result.status === "ok" || result.status === "no_match")) {
+      void writeContactCache(folio, result);
+    }
+    return NextResponse.json({ ...result, cached: false });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Contact enrichment failed.";

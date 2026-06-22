@@ -35,7 +35,8 @@ export default function SearchExperience({
 
   const abortRef = useRef<AbortController | null>(null);
 
-  const enrich = useCallback(async (lookup: OwnerLookupResult, signal: AbortSignal) => {
+  const enrich = useCallback(
+    async (lookup: OwnerLookupResult, signal: AbortSignal, force = false) => {
     if (!lookup.match) {
       setContactPhase("idle");
       return;
@@ -53,6 +54,8 @@ export default function SearchExperience({
           mailingAddress: lookup.match.mailingAddress,
           siteAddress: lookup.match.siteAddress,
           searchName: lookup.match.trustInfo?.person ?? null,
+          folio: lookup.match.folioRaw,
+          force,
         }),
       });
       const data = (await res.json()) as ContactResult;
@@ -71,6 +74,12 @@ export default function SearchExperience({
       setContactPhase("done");
     }
   }, []);
+
+  const refreshContacts = useCallback(() => {
+    if (!owner?.match) return;
+    const ctrl = new AbortController();
+    void enrich(owner, ctrl.signal, true);
+  }, [owner, enrich]);
 
   const run = useCallback(
     async (q: string, type: QueryType) => {
@@ -200,7 +209,7 @@ export default function SearchExperience({
       {(ownerPhase === "loading" || (ownerPhase === "done" && owner?.match)) && (
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {ownerPhase === "loading" ? <OwnerSkeleton /> : <OwnerCard record={owner!.match!} />}
-          <ContactPanel phase={contactPhase} result={contact} />
+          <ContactPanel phase={contactPhase} result={contact} onRefresh={refreshContacts} />
         </div>
       )}
 

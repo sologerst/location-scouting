@@ -5,6 +5,16 @@ import type { ContactDatum, ContactResult } from "@/lib/types";
 
 export type ContactPhase = "idle" | "loading" | "done";
 
+function timeAgo(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const days = Math.floor((Date.now() - then) / 86400000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
 function ConfidencePill({ value }: { value: number | null }) {
   if (value == null) return null;
   const tone =
@@ -110,10 +120,17 @@ function SkeletonRows() {
 export default function ContactPanel({
   phase,
   result,
+  onRefresh,
 }: {
   phase: ContactPhase;
   result: ContactResult | null;
+  onRefresh?: () => void;
 }) {
+  const showRefresh =
+    phase === "done" &&
+    !!onRefresh &&
+    (result?.status === "ok" || result?.status === "no_match");
+
   return (
     <div className="card">
       <div className="mb-3 flex items-center gap-2">
@@ -126,6 +143,28 @@ export default function ContactPanel({
           </svg>
           Enriched · likely
         </span>
+        {showRefresh && (
+          <span className="ml-auto flex items-center gap-2">
+            {result?.cached && (
+              <span className="text-[11px]" style={{ color: "var(--ink-hint)" }}>
+                Saved {timeAgo(result.fetchedAt)}
+              </span>
+            )}
+            <button
+              onClick={onRefresh}
+              title="Re-run skip-trace (uses a provider credit)"
+              aria-label="Refresh contacts"
+              className="flex items-center gap-1 text-[12px] font-medium"
+              style={{ color: "var(--brand)" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M20 11a8 8 0 1 0-.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M20 4v6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Refresh
+            </button>
+          </span>
+        )}
       </div>
 
       {phase === "idle" && (

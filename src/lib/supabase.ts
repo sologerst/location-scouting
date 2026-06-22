@@ -6,7 +6,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY   (server-only; used by API routes)
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { HistoryItem, OwnerLookupResult } from "./types";
+import type { ContactResult, HistoryItem, OwnerLookupResult } from "./types";
 
 let cached: SupabaseClient | null = null;
 
@@ -123,6 +123,51 @@ export async function readHistory(
     }));
   } catch {
     return null;
+  }
+}
+
+/**
+ * Read a saved contact-enrichment result for a folio. No TTL — the point is to
+ * avoid re-paying the provider; refresh is explicit. Never throws.
+ */
+export async function readContactCache(
+  folioRaw: string,
+): Promise<ContactResult | null> {
+  const db = getServiceClient();
+  if (!db) return null;
+  try {
+    const { data } = await db
+      .from("contact_lookups")
+      .select("result")
+      .eq("folio_raw", folioRaw)
+      .maybeSingle();
+    if (!data?.result) return null;
+    return { ...(data.result as ContactResult), cached: true };
+  } catch {
+    return null;
+  }
+}
+
+/** Save a contact-enrichment result for a folio (upsert). Never throws. */
+export async function writeContactCache(
+  folioRaw: string,
+  result: ContactResult,
+): Promise<void> {
+  const db = getServiceClient();
+  if (!db) return;
+  try {
+    await db.from("contact_lookups").upsert(
+      {
+        folio_raw: folioRaw,
+        subject: result.subject,
+        provider: result.provider,
+        result,
+        fetched_at: result.fetchedAt,
+      },
+      { onConflict: "folio_raw" },
+    );
+  } catch {
+    // swallow — caching must never break the request
   }
 }
 
